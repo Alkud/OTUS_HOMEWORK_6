@@ -1,356 +1,248 @@
-// lazy_matrix.h in OTUS home work #6 project
-
 #pragma once
 
+#include <set>
+#include <deque>
 #include <map>
-#include <list>
-#include <type_traits>
-#include <memory>
-#include <algorithm>
+#include <tuple>
+#include <utility>
+#include <cassert>
 #include <iostream>
-#include <iterator>
 
-template <typename T, int defaultvalue, size_t dimension = 2, typename Enable = void>
-class LazyMatrix;
-
-#include "smart_cell.h"
-
-/*--------------------------------------------------------------------------------*/
-
-template <typename T, int defaultValue>
-class LazyMatrix<
-                  T,
-                  defaultValue,
-                  1,
-                  typename std::enable_if<std::is_arithmetic<T>::value>::type
-                >
+/* Array to tuple conversion function */
+template <typename T, size_t N, size_t... Indices>
+auto arrayToTupleHelper(std::array<T, N> const& array,
+                        std::index_sequence<Indices...>)
 {
-public:
+    return std::make_tuple(array[Indices]...);
+}
 
-  using CellType = SmartCell<T, defaultValue>;
+template <typename T, size_t N>
+auto arrayToTuple(std::array<T, N> const& array)
+{
+    return arrayToTupleHelper(array, std::make_index_sequence<N>{});
+}
 
-  using iterator_value_type = std::tuple<std::list<size_t>, T>;
+/* Tuple of size_t indices type declaration */
+template<size_t... Indices>
+auto indexTupleHelper(std::index_sequence<Indices...>)
+{
+  return std::make_tuple(Indices...);
+}
 
-  using iterator_pointer_type = T*;
+template<size_t N, typename Indices = std::make_index_sequence<N>>
+using indexTuple = decltype(indexTupleHelper(Indices{}));
 
-  using iterator_reference_type = T&;
 
-  class Iterator : public std::iterator<
-                                        std::forward_iterator_tag,
-                                        iterator_value_type,
-                                        std::ptrdiff_t,
-                                        iterator_pointer_type,
-                                        iterator_reference_type
-                                       >
-  {
-  public:
+/* Matrix element type declaration */
+template<size_t dimension, typename T>
+using LazyMatrixElement = decltype(std::tuple_cat(indexTuple<dimension>{}, std::make_tuple(T{})));
 
-    using value_type = iterator_value_type;
-    using pointer = iterator_pointer_type;
-    using reference = iterator_reference_type;
 
-    using MapIterator = typename std::map<size_t, SmartCell<T, defaultValue>>::iterator;
-    using MapConstIterator = typename std::map<size_t, SmartCell<T, defaultValue>>::const_iterator;
+/* Matrix element operator<< overloading */
+template<typename... Types, size_t... Indices>
+auto
+extractIndicesHelper(const std::tuple<Types...>& tuple, std::index_sequence<Indices...>)
+{
+  return std::array<size_t, sizeof...(Types) - 1> {std::get<Indices>(tuple)...};
+}
 
-    Iterator(){}
-    Iterator(MapIterator _mapIterator) : mapIterator{_mapIterator}{}
-    Iterator(const Iterator& other) : mapIterator{other.mapIterator} {}
-    Iterator(Iterator&& other) {std::swap(mapIterator, other.mapIterator);}
-    Iterator& operator=(const Iterator& other) {mapIterator = other.mapIterator; return *this;}
-    Iterator& operator=(Iterator&& other){std::swap(mapIterator, other.mapIterator); return *this;}
+template<typename... Types>
+auto extractIndices(const std::tuple<Types...>& tuple)
+{
+  return extractIndicesHelper(tuple, std::make_index_sequence<sizeof...(Types) - 1>{});
+}
 
-    Iterator operator++()                                 // prefix increment
-    {
-      ++mapIterator;
-      return *this;
-    }
-
-    Iterator operator++(int)                              // prefix increment
-    {
-      Iterator tmp{*this};
-      ++(*this);
-      return tmp;
-    }
-
-    value_type operator*() { return mapIterator->second.makeTuple();}
-    reference operator->() { return mapIterator->second.value;}
-    bool operator==(const Iterator& other) { return mapIterator == other.mapIterator; }
-    bool operator!=(const Iterator& other) { return mapIterator != other.mapIterator; }
-
-  private:
-    typename std::map<size_t, SmartCell<T, defaultValue>>::iterator mapIterator;
-  };
-
-  using iterator = Iterator;
-
-  Iterator begin()
-  {
-    return Iterator{data.begin()};
-  }
-
-  Iterator end()
-  {
-    return Iterator{data.end()};
-  }
-
-  SmartCell<T, defaultValue>& operator[](const size_t& idx)
-  {
-    if (data.find(idx) != data.end()) // cell exists
-    {
-      return data[idx];
-    }
-    else                              // no such index - use the temporary cell
-    {
-      tmpCell.value        = defaultValue;
-      tmpCell.index        = idx;
-      tmpCell.parent       = this;
-      tmpCell.upperIndices = upperIndices;
-      return tmpCell;
-    }
-  }
-
-  size_t size() const
-  {
-    return data.size();
-  }
-
-  void removeItem(size_t index)
-  {
-    data.erase(index);
-  }
-
-  friend class SmartCell<T, defaultValue>;
-
-  friend class LazyMatrix<T, defaultValue, 2>;
-
-  friend class Iterator;
-
-private:
-  std::list<size_t> upperIndices;
-  SmartCell<T, defaultValue> tmpCell {0,defaultValue, this};
-  std::map<size_t, SmartCell<T, defaultValue>> data;
-};
-
-template <typename T, int defaultValue>
+template<typename... Types>
 std::ostream&
-operator<< (std::ostream& outputStream,
-            const std::pair<const size_t, LazyMatrix<T, defaultValue, 1>> matrixPair)
+operator<<(std::ostream& outputStream,
+           const std::tuple<Types...> cell)
 {
-  if (matrixPair.second.size() != 0)
+  auto indexArray{extractIndices(cell)};
+  auto iter(std::cbegin(indexArray));
+  outputStream << '[' << *iter;
+  ++iter;
+  for (;iter != std::cend(indexArray); ++iter)
   {
-    for (const auto& cellPair : matrixPair.second)
-    {
-      outputStream << cellPair << " ";
-    }
-    outputStream << std::endl;
+    outputStream << ',' << *iter;
   }
+  outputStream << "]=" << std::get<sizeof...(Types) - 1>(cell) << '\n';
   return outputStream;
 }
 
+/*---------------------------------------------------------------------------------------------*/
+/*                       Matrix class                                                          */
+/*---------------------------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------------*/
+template <typename T, int defaultvalue, size_t dimension = 2, typename Enable = void>
+class LazyMatrix;
 
 template <typename T, int defaultValue, size_t dimension>
 class LazyMatrix<
                   T,
                   defaultValue,
                   dimension,
-                  typename std::enable_if<std::is_arithmetic<T>::value>::type
+                  typename std::enable_if<
+                                          std::is_arithmetic<T>::value &&
+                                          dimension >= 1
+                                         >::type
                 >
 {
-public:
 
-  using iterator_value_type = LazyMatrix<T, defaultValue, dimension - 1>;
-  using iterator_pointer_type = LazyMatrix<T, defaultValue, dimension - 1>*;
-  using iterator_reference_type = LazyMatrix<T, defaultValue, dimension - 1>&;
-
-  class Iterator : public std::iterator<
-                                        std::forward_iterator_tag,
-                                        iterator_value_type,
-                                        std::ptrdiff_t,
-                                        iterator_pointer_type,
-                                        iterator_reference_type
-                                       >
+  /* Helper class for correct assignment opeartions */
+  struct SmartCell
   {
-  public:
+    explicit SmartCell(LazyMatrix<T, defaultValue, dimension>* _matrix) :
+      matrix{_matrix}{}
 
-    using MapIterator = typename std::map<
-                                          size_t,
-                                          LazyMatrix<T, defaultValue, dimension - 1>
-                                         >::iterator;
-
-    using CellIterator = typename LazyMatrix<T, defaultValue, dimension - 1>::iterator;
-
-
-    Iterator(){}
-
-    Iterator(MapIterator _mapIterator, MapIterator _mapEnd) :
-      mapIterator{_mapIterator}, mapEnd{_mapEnd}
+    SmartCell& operator[](size_t index) noexcept(false)
     {
-      if (mapIterator == mapEnd)
+      if(nullptr == matrix)
       {
-        return;
+        throw std::invalid_argument("Parent matrix pointer not defined");
       }
 
-      cellIterator = mapIterator->second.begin();
-      skipEmptyContainers();
-    }
-
-    Iterator(const Iterator& other) :
-      mapIterator{other.mapIterator}, mapEnd{other.mapEnd}, cellIterator{other.cellIterator} {}
-
-    Iterator(Iterator&& other)
-    {
-      std::swap(mapIterator, other.mapIterator);
-      std::swap(mapEnd, other.mapEnd);
-      std::swap(cellIterator, other.cellIterator);
-    }
-
-    Iterator& operator=(const Iterator& other)
-    {
-      mapIterator = other.mapIterator;
-      mapEnd = other.mapEnd;
-      cellIterator = other.cellIterator;
+      address[nextIndex] = index;
+      if (nextIndex < dimension - 1)       // address not complete
+      {
+        ++nextIndex;
+      }
+      else if (dimension - 1 == nextIndex) // address complete
+      {
+        if (matrix->serviceData.find(arrayToTuple(address))
+            != matrix->serviceData.end())
+        {
+          value = matrix->serviceData[arrayToTuple(address)];
+        }
+        else
+        {
+          value = defaultValue;
+        }
+        ++nextIndex;
+      }
+      else                                   // wrong number in indices
+      {
+        throw std::out_of_range{"Index beyound matrix dimension"};
+        /* If you have reached this point, you try to index the matrix
+         * beyond its dimension. E.g. use M[0][0][0] for a
+         * 2-dimensional one*/
+      }
       return *this;
     }
 
-    Iterator& operator=(Iterator&& other)
-    {
-      std::swap(mapIterator, other.mapIterator);
-      std::swap(mapEnd, other.mapEnd);
-      std::swap(cellIterator, other.cellIterator);
+    template <typename U>
+    typename std::enable_if<std::is_arithmetic<U>::value, SmartCell&>::type
+    operator=(const U& newValue) noexcept(false)
+    {      
+
+      if (dimension != nextIndex)
+      {
+        throw(std::out_of_range{"Wrong index range"});
+      }
+
+      if(nullptr == matrix)
+      {
+        throw std::invalid_argument("Parent matrix pointer not defined");
+      }
+
+      if (defaultValue == newValue)
+      {
+        matrix->serviceData.erase(arrayToTuple(address));
+        matrix->userData.erase(std::tuple_cat(address, std::tie(value)));
+      }
+      else
+      {
+        matrix->serviceData[arrayToTuple(address)] = newValue;
+        matrix->userData.insert(std::tuple_cat(arrayToTuple(address), std::tie(newValue)));
+      }
+      value = newValue;
       return *this;
     }
 
-    Iterator operator++()                                 // prefix increment
+    template <typename U, class = typename std::enable_if<std::is_arithmetic<U>::value, U>::type>
+    operator U() noexcept(false)
     {
-      ++cellIterator;
-      if (cellIterator == mapIterator->second.end())
-          skipEmptyContainers();
-      return *this;
-    }
 
-    Iterator operator++(int)                              // prefix increment
-    {
-      Iterator tmp{*this};
-      ++(*this);
-      return tmp;
-    }
-
-
-
-    auto operator*() { return *cellIterator; }
-
-    auto operator->() { return cellIterator; }
-
-    bool operator==(const Iterator& other)
-    {
-      if (mapIterator != other.mapIterator)
+      if (dimension != nextIndex)
       {
-        return false;
+        throw(std::out_of_range{"Wrong index range"});
       }
 
-      if (mapIterator != mapEnd &&
-          other.mapIterator != other.mapEnd &&
-          cellIterator != other.cellIterator)
-      {
-        return false;
-      }
-
-      return true;
+      return static_cast<U>(value);
     }
 
-    bool operator!=(const Iterator& other) { return !(mapIterator == other.mapIterator); }
-
-    void skipEmptyContainers()
+    template<typename U>
+    typename std::enable_if<std::is_arithmetic<U>::value, bool>::type
+    operator==(const U& otherValue) noexcept(false)
     {
-      while (mapIterator != mapEnd && cellIterator == mapIterator->second.end()) // while map end is not reached and cell is empty
+      if (dimension != nextIndex)
       {
-        ++mapIterator;
-        if (mapIterator != mapEnd) // if map is not empty
-          cellIterator = mapIterator->second.begin();
+        throw(std::out_of_range{"Wrong index range"});
       }
+
+      return (value == static_cast<T>(otherValue));
     }
 
-  private:
-    MapIterator mapIterator;
-    MapIterator mapEnd;
-    CellIterator cellIterator;
+    friend std::ostream&
+    operator<< (std::ostream& outputStream, const SmartCell& cell)
+    {
+      outputStream << cell.value;
+      return outputStream;
+    }
+
+    std::array<size_t, dimension> address;
+    size_t nextIndex{};
+    T value{defaultValue};
+    LazyMatrix<T, defaultValue, dimension>* matrix{nullptr};
   };
 
-  using iterator = Iterator;
 
+public:
+  LazyMatrix(){}
 
-  auto begin()
+  SmartCell& operator[](const size_t& index) noexcept(true)
   {
-    return Iterator(data.begin(), data.end());
+    dummyCell.address[0] = index;
+    dummyCell.nextIndex = 1;
+    return dummyCell;
   }
 
-  auto end()
+  const SmartCell& operator[](const size_t& index) const noexcept(true)
   {
-    return Iterator(data.end(), data.end());
+    dummyCell.address[0] = index;
+    dummyCell.nextIndex = 1;
+    return dummyCell;
   }
 
-  LazyMatrix<T, defaultValue, dimension - 1>&
-  operator[](size_t idx)
+  size_t size() noexcept(true)
   {
-    if (data.find(idx) == data.end())       // submatrix doesn't exist
-    {
-      data[idx].upperIndices = upperIndices;
-      data[idx].upperIndices.push_front(idx);
-    }
-    return data[idx];
+    return userData.size();
   }
 
-  size_t size() const
+  auto begin() noexcept(true)
   {
-    size_t result{};
-    for (auto const& matrix : data)
-    {
-         result += matrix.second.size();
-    }
-    return result;
+    return userData.begin();
   }
 
-  friend class LazyMatrix<T, defaultValue, dimension + 1>;
+  auto end() noexcept(true)
+  {
+    return userData.end();
+  }
+
+  auto cbegin() const noexcept(true)
+  {
+    return userData.cbegin();
+  }
+
+  auto cend() const noexcept(true)
+  {
+    return userData.cend();
+  }
+
 
 private:
-  std::list<size_t> upperIndices{};
-  std::map<
-            size_t,
-            LazyMatrix<T, defaultValue, dimension - 1>
-          > data;
+  std::set<LazyMatrixElement<dimension, T>> userData;
+  std::map<indexTuple<dimension>, T> serviceData;
+
+  SmartCell dummyCell{this};
 };
-
-template <typename T, int defaultValue, size_t dimension>
-std::ostream&
-operator << (std::ostream& outputStream,
-             LazyMatrix<T, defaultValue, dimension>& matrix)
-{
-  if (matrix.size() == 0)
-  {
-    return outputStream;
-  }
-
-  for (const auto& cell : matrix)
-  {
-    std::list<size_t> indices;
-    T v{};
-    std::tie(indices,v) = cell;
-    std::cout << '[';
-    bool first{true};
-    for (const auto& idx : indices)
-    {
-      if (!first)
-      {
-         std::cout << ',';
-      }
-      first = false;
-      std::cout << idx;
-    }
-    std::cout << "]:" << v << std::endl;
-  }
-
-  return outputStream;
-}
 

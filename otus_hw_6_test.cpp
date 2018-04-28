@@ -3,7 +3,7 @@
 #define BOOST_TEST_MODULE OTUS_HW_4_TEST
 
 #include <boost/test/unit_test.hpp>
-#include "process.h"
+#include "homework_6.h"
 #include "lazy_matrix.h"
 #include <list>
 #include <string>
@@ -23,83 +23,127 @@ BOOST_AUTO_TEST_CASE(check_main_task)
     "0 0 6 0 0 6 0 0 \n"
     "0 7 0 0 0 0 7 0 \n"
     "8 0 0 0 0 0 0 8 \n"
-    "[9,0]:9\n"
-    "[1,1]:1\n"
-    "[8,1]:8\n"
-    "[2,2]:2\n"
-    "[7,2]:7\n"
-    "[3,3]:3\n"
-    "[6,3]:6\n"
-    "[4,4]:4\n"
-    "[5,4]:5\n"
-    "[4,5]:4\n"
-    "[5,5]:5\n"
-    "[3,6]:3\n"
-    "[6,6]:6\n"
-    "[2,7]:2\n"
-    "[7,7]:7\n"
-    "[1,8]:1\n"
-    "[8,8]:8\n"
-    "[9,9]:9\n"
+    "[1,1]=1\n"
+    "[1,8]=1\n"
+    "[2,2]=2\n"
+    "[2,7]=2\n"
+    "[3,3]=3\n"
+    "[3,6]=3\n"
+    "[4,4]=4\n"
+    "[4,5]=4\n"
+    "[5,4]=5\n"
+    "[5,5]=5\n"
+    "[6,3]=6\n"
+    "[6,6]=6\n"
+    "[7,2]=7\n"
+    "[7,7]=7\n"
+    "[8,1]=8\n"
+    "[8,8]=8\n"
+    "[9,0]=9\n"
+    "[9,9]=9\n"
     "size: 18\n"
   };
   std::stringstream testStream{};
-  process(testStream);
+
+  try
+  {
+    homework_6(testStream);
+  }
+  catch(std::exception& ex)
+  {
+    std::cout << ex.what();
+  }
+
   /* check output correctness */
   BOOST_CHECK(testStream.str() == testString);
 }
+
 
 BOOST_AUTO_TEST_CASE(check_5_dimensions)
 {
   LazyMatrix<double, -2, 5> testMatrix{};
   std::stringstream testStrings{};
-  for (size_t n{0}; n < 1000; n++)
-  {
-    size_t i {std::rand() % 1000};
-    size_t j {std::rand() % 1000};
-    size_t k {std::rand() % 1000};
-    size_t l {std::rand() % 1000};
-    size_t m {std::rand() % 1000};
-    testMatrix[m][l][k][j][i] = i * 0.33 + j * 0.33 + k * 0.33 + l * 0.33 + m * 0.33;
-    testStrings << '[' << i << ',' << j << ',' << k << ',' << l << ',' << m << "]:" << i * 0.33 + j*0.33 + k * 0.33 + l * 0.33 + m * 0.33<< '\n';
-  }
-  std::list<size_t> indices{};
-  double v{};
-  std::stringstream testStream{};
-  for (const auto cell : testMatrix)
-  {
-    std::tie(indices,v) = cell;
-    testStream << cell;
-  }
-  /* check matrix size */
-  BOOST_CHECK(testMatrix.size() == 1000);
-  /*check indexing correctness*/
-  BOOST_CHECK(std::accumulate(indices.begin(), indices.end(), 0) * 0.33 == v);
 
-  std::string str1{testStrings.str()};
-  std::string str2{testStream.str()};
-  auto checkSumm1 {std::accumulate(str1.begin(), str1.end(), 0,
-                    [](int sum, const char& ch) {return sum + ch;})};
-  auto checkSumm2  {std::accumulate(str2.begin(), str2.end(), 0,
-                    [](int sum, const char& ch) {return sum + ch;})};
+  const size_t i {67};
+  const size_t j {582};
+  const size_t k {235};
+  const size_t l {1};
+  const size_t m {369};
 
-  /* check content output correctness */
-  BOOST_CHECK(checkSumm1 == checkSumm2);
+  const double testValue1 = -79.654;
+  const double testValue2 = 476.345;
+
+  try
+  {
+    /* Build test matrix and test string */
+    testMatrix[i][j][k][l][m] = testValue1;
+    testStrings << '[' << i << ',' << j << ',' << k
+                << ',' << l << ',' << m << "]=" << testValue1 << '\n';
+
+    testMatrix[m][l][k][j][i] = testValue2;
+    testStrings << '[' << m << ',' << l << ',' << k
+                << ',' << j << ',' << i << "]=" << testValue2 << '\n';
+
+    std::stringstream testStream{};
+    for (const auto& cell : testMatrix)
+    {
+      testStream << cell;
+    }
+
+    /* Check matrix size */
+    BOOST_CHECK(testMatrix.size() == 2);
+
+    /* Check assignment corrresctness */
+    BOOST_CHECK(testMatrix[i][j][k][l][m] == testValue1);
+    BOOST_CHECK(testMatrix[m][l][k][j][i] == testValue2);
+    BOOST_CHECK(testMatrix[10][11][12][13][14] == -2);
+    testMatrix[i][j][k][l][m] = -2;
+    BOOST_CHECK(testMatrix.size() == 1);
+    BOOST_CHECK(testMatrix[i][j][k][l][m] == -2);
+    testMatrix[m][l][k][j][i] = -2;
+    BOOST_CHECK(testMatrix.size() == 0);
+    BOOST_CHECK(testMatrix[m][l][k][j][i] == -2);
+
+    /* Check content output correctness */
+    std::string str1{testStrings.str()};
+    std::string str2{testStream.str()};
+    BOOST_CHECK(str1 == str2);
+  }
+  catch(std::exception& ex)
+  {
+    std::cout << ex.what();
+  }
 }
 
 BOOST_AUTO_TEST_CASE(check_canonical_equal_operator)
 {
-  LazyMatrix<float, -200, 3> testMatrix{};
-  ((((testMatrix[90][2456][789] = -5678.30007) = -200) = 1280.451) = -200) = -200.001;
-  /* check matrix size */
-  BOOST_CHECK(testMatrix.size() == 1);
-  /* check equal operator correctness */
-  BOOST_CHECK(testMatrix[90][2456][789] == -200.001);
+  try
+  {
+    LazyMatrix<float, -200, 3> testMatrix{};
+    ((((testMatrix[90][2456][789] = -5678.30007) = -200) = 1280.451) = -200) = -200.001;
+    /* check matrix size */
+    BOOST_CHECK(testMatrix.size() == 1);
+    /* check equal operator correctness */
+    BOOST_CHECK(testMatrix[90][2456][789] == -200.001);
 
-  /* check reset to default */
-  testMatrix[90][2456][789] = -200;
-  BOOST_CHECK(testMatrix.size() == 0);
-  BOOST_CHECK(testMatrix[90][2456][789] == -200);
+    /* check reset to default */
+    testMatrix[90][2456][789] = -200;
+    BOOST_CHECK(testMatrix.size() == 0);
+    BOOST_CHECK(testMatrix[90][2456][789] == -200);
+  }
+  catch(std::exception& ex)
+  {
+    std::cout << ex.what();
+  }
+}
+
+BOOST_AUTO_TEST_CASE(indexing_failure)
+{
+  LazyMatrix<float, 0, 4> testMatrix;
+  BOOST_CHECK_THROW((testMatrix[1][2][3][4][5] == 0), std::out_of_range);
+  BOOST_CHECK_THROW((testMatrix[1][2][3] == 0), std::out_of_range);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+

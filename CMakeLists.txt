@@ -23,15 +23,11 @@ add_library(lazy_matrix INTERFACE)
 target_sources(lazy_matrix INTERFACE ${PROJECT_SOURCE_DIR}/lazy_matrix.h)
 target_include_directories(lazy_matrix INTERFACE ${PROJECT_SOURCE_DIR})
 
-add_library(smart_cell INTERFACE)
-target_sources(smart_cell INTERFACE ${PROJECT_SOURCE_DIR}/smart_cell.h)
-target_include_directories(smart_cell INTERFACE ${PROJECT_SOURCE_DIR})
 
-
-add_library(process process.cpp)
+add_library(homework_6 homework_6.cpp)
 
 #Set executable target
-set(HEADERS ${PROJECT_SOURCE_DIR}/lazy_matrix.h ${PROJECT_SOURCE_DIR}/smart_cell.h)
+set(HEADERS ${PROJECT_SOURCE_DIR}/lazy_matrix.h)
 add_executable(matrix matrix.cpp ${HEADERS})
 
 
@@ -58,12 +54,11 @@ set_target_properties(otus_hw_6_test PROPERTIES
 )
 
 #Link
-target_link_libraries(matrix process)
-target_link_libraries(process INTERFACE lazy_matrix)
-target_link_libraries(lazy_matrix INTERFACE smart_cell)
+target_link_libraries(matrix homework_6)
+target_link_libraries(homework_6 INTERFACE lazy_matrix)
 target_link_libraries(otus_hw_6_test
   ${Boost_LIBRARIES}
-  process
+  homework_6
   lazy_matrix
 )
 

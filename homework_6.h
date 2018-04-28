@@ -5,4 +5,4 @@
 #include <iostream>
 #include "lazy_matrix.h"
 
-void process(std::ostream& outputStream);
+void homework_6(std::ostream& outputStream);
