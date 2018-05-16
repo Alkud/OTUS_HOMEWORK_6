@@ -162,6 +162,7 @@ BOOST_AUTO_TEST_CASE(const_matrix_operations_test)
   LazyMatrix<int, 0, 2> testMatrix;
   testMatrix[0][1] = 1;
   testMatrix[1][0] = 2;
+
   const LazyMatrix <int, 0, 2> constTestMatrix{testMatrix};
   BOOST_CHECK(constTestMatrix[0][1] == 1);
   BOOST_CHECK(constTestMatrix[1][0] == 2);

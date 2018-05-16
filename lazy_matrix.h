@@ -54,7 +54,7 @@ auto extractIndices(const std::tuple<Types...>& tuple)
 template<typename... Types>
 std::ostream&
 operator<<(std::ostream& outputStream,
-           const std::tuple<Types...> cell)
+           const std::tuple<Types...>& cell)
 {
   auto indexArray{extractIndices(cell)};
   auto iter(std::cbegin(indexArray));
