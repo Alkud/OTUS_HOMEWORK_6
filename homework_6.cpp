@@ -27,7 +27,7 @@ void homework_6(std::ostream& outputStream)
     std::tie(x, y ,v) = cell;
     outputStream << '[' << x    << ',' <<
                   y  << "]=" << v   <<
-                 '\n';
+                 '\n';    
   }
   outputStream << "size: " << matrix.size() << std:: endl;
 }

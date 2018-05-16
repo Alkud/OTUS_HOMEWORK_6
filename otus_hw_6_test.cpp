@@ -51,6 +51,7 @@ BOOST_AUTO_TEST_CASE(check_main_task)
   }
   catch(std::exception& ex)
   {
+    BOOST_CHECK(false);
     std::cout << ex.what();
   }
 
@@ -111,6 +112,7 @@ BOOST_AUTO_TEST_CASE(check_5_dimensions)
   }
   catch(std::exception& ex)
   {
+    BOOST_CHECK(false);
     std::cout << ex.what();
   }
 }
@@ -133,6 +135,7 @@ BOOST_AUTO_TEST_CASE(check_canonical_equal_operator)
   }
   catch(std::exception& ex)
   {
+    BOOST_CHECK(false);
     std::cout << ex.what();
   }
 }
@@ -144,6 +147,28 @@ BOOST_AUTO_TEST_CASE(indexing_failure)
   BOOST_CHECK_THROW((testMatrix[1][2][3] == 0), std::out_of_range);
 }
 
+BOOST_AUTO_TEST_CASE(cell_reassignment_effect_on_matrix_size)
+{
+  LazyMatrix<int, 0, 2> testMatrix;
+  testMatrix[0][1] = 11;
+  testMatrix[0][1] = 21;
+  testMatrix[0][1] = 31;
+  BOOST_CHECK(testMatrix[0][1] == 31);
+  BOOST_CHECK(testMatrix.size() == 1);
+}
+
+BOOST_AUTO_TEST_CASE(const_matrix_operations_test)
+{
+  LazyMatrix<int, 0, 2> testMatrix;
+  testMatrix[0][1] = 1;
+  testMatrix[1][0] = 2;
+  const LazyMatrix <int, 0, 2> constTestMatrix{testMatrix};
+  BOOST_CHECK(constTestMatrix[0][1] == 1);
+  BOOST_CHECK(constTestMatrix[1][0] == 2);
+  BOOST_CHECK(constTestMatrix.size() == 2);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
+
 
 

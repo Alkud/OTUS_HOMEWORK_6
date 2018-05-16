@@ -1,7 +1,6 @@
 #pragma once
 
 #include <set>
-#include <deque>
 #include <map>
 #include <tuple>
 #include <utility>
@@ -92,15 +91,16 @@ class LazyMatrix<
   struct SmartCell
   {
     explicit SmartCell(LazyMatrix<T, defaultValue, dimension>* _matrix) :
-      matrix{_matrix}{}
-
-    SmartCell& operator[](size_t index) noexcept(false)
+      matrix{_matrix}
     {
       if(nullptr == matrix)
       {
         throw std::invalid_argument("Parent matrix pointer not defined");
       }
+    }
 
+    SmartCell& operator[](size_t index) noexcept(false)
+    {
       address[nextIndex] = index;
       if (nextIndex < dimension - 1)       // address not complete
       {
@@ -121,13 +121,44 @@ class LazyMatrix<
       }
       else                                   // wrong number in indices
       {
-        throw std::out_of_range{"Index beyound matrix dimension"};
+        throw std::out_of_range{"Index beyond matrix dimension"};
         /* If you have reached this point, you try to index the matrix
          * beyond its dimension. E.g. use M[0][0][0] for a
          * 2-dimensional one*/
       }
       return *this;
     }
+
+    const SmartCell& operator[](size_t index) const noexcept(false)
+    {
+      address[nextIndex] = index;
+      if (nextIndex < dimension - 1)       // address not complete
+      {
+        ++nextIndex;
+      }
+      else if (dimension - 1 == nextIndex) // address complete
+      {
+        if (matrix->serviceData.find(arrayToTuple(address))
+            != matrix->serviceData.end())
+        {
+          value = matrix->serviceData[arrayToTuple(address)];
+        }
+        else
+        {
+          value = defaultValue;
+        }
+        ++nextIndex;
+      }
+      else                                   // wrong number in indices
+      {
+        throw std::out_of_range{"Index beyond matrix dimension"};
+        /* If you have reached this point, you try to index the matrix
+         * beyond its dimension. E.g. use M[0][0][0] for a
+         * 2-dimensional one*/
+      }
+      return *this;
+    }
+
 
     template <typename U>
     typename std::enable_if<std::is_arithmetic<U>::value, SmartCell&>::type
@@ -152,6 +183,7 @@ class LazyMatrix<
       else
       {
         matrix->serviceData[arrayToTuple(address)] = newValue;
+        matrix->userData.erase(std::tuple_cat(address, std::tie(value)));
         matrix->userData.insert(std::tuple_cat(arrayToTuple(address), std::tie(newValue)));
       }
       value = newValue;
@@ -172,7 +204,7 @@ class LazyMatrix<
 
     template<typename U>
     typename std::enable_if<std::is_arithmetic<U>::value, bool>::type
-    operator==(const U& otherValue) noexcept(false)
+    operator==(const U& otherValue) const noexcept(false)
     {
       if (dimension != nextIndex)
       {
@@ -189,10 +221,10 @@ class LazyMatrix<
       return outputStream;
     }
 
-    std::array<size_t, dimension> address;
-    size_t nextIndex{};
-    T value{defaultValue};
-    LazyMatrix<T, defaultValue, dimension>* matrix{nullptr};
+    mutable std::array<size_t, dimension> address{};
+    mutable size_t nextIndex{};
+    mutable T value{defaultValue};
+    LazyMatrix<T, defaultValue, dimension>* const matrix{nullptr};
   };
 
 
@@ -213,7 +245,7 @@ public:
     return dummyCell;
   }
 
-  size_t size() noexcept(true)
+  size_t size() const noexcept(true)
   {
     return userData.size();
   }
